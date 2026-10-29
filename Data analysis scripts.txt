@@ -1,0 +1,55 @@
+Genome-wide profiling of alternative splicing reveals tissue-specific isoform regulation and fine-tunes protein structures in the Yesso scallop (Mizuhopecten yessoensis)
+analysis scripts
+1. The raw sequencing data were processed and aligned to the reference genome
+① Quality Control  
+for i in SRR4415811 SRR4428736 SRR4415812 SRR10055407 SRR10055408 SRR4415827 SRR4415813 SRR4431156 SRR4415814 SRR4415815 SRR4428738 SRR4415816 SRR4415819 SRR4431129 SRR4415820 SRR10055403 SRR10055404 SRR10055406 SRR4415817 SRR4415826 SRR10055409 SRR4415821 SRR4428737 SRR4415822 SRR4415823 SRR4431155 SRR4415824 SRR4415825 SRR4431130 SRR4473632 
+do
+/public/home/liupingping/22lzj/usefultool/fastp -i ${i}_1.fastq.gz -I ${i}_2.fastq.gz -o ${i}.R1.fq.gz -O ${i}.R2.fq.gz -h ${i}_fastp.html -j ${i}_fastp.json --thread 10
+done
+② Building the genome index
+hisat2-build -p 10 Mizuhopecten_yessoensis.genomic.fa Mizuhopecten_yessoensis
+
+③ Read Alignment and Transcriptome Mapping  
+for i in SRR4415811 SRR4428736 SRR4415812 SRR10055407 SRR10055408 SRR4415827 SRR4415813 SRR4431156 SRR4415814 SRR4415815 SRR4428738 SRR4415816 SRR4415819 SRR4431129 SRR4415820 SRR10055403 SRR10055404 SRR10055406 SRR4415817 SRR4415826 SRR10055409 SRR4415821 SRR4428737 SRR4415822 SRR4415823 SRR4431155 SRR4415824 SRR4415825 SRR4431130 SRR4473632 
+do
+hisat2 --dta -t -x Mizuhopecten_yessoensis -1 ${i}.R1.fq.gz -2 ${i}.R2.fq.gz | samtools view -Sb | samtools sort -o ${i}.sort.bam -@10
+done
+
+2. Transcriptome Assembly and Quantification
+① 
+for i in SRR4415811 SRR4428736 SRR4415812 SRR10055407 SRR10055408 SRR4415827 SRR4415813 SRR4431156 SRR4415814 SRR4415815 SRR4428738 SRR4415816 SRR4415819 SRR4431129 SRR4415820 SRR10055403 SRR10055404 SRR10055406 SRR4415817 SRR4415826 SRR10055409 SRR4415821 SRR4428737 SRR4415822 SRR4415823 SRR4431155 SRR4415824 SRR4415825 SRR4431130 SRR4473632 
+do
+/public/home/liupingping/xzy/biosoftware/stringtie-1.3.3b.Linux_x86_64/stringtie ${i}.sort.bam -G /public/home/liupingping/24wh/transcriptome/xiayi/ref/Mizuhopecten_yessoensis.gtf -p 10 -o /public/home/liupingping/24wh/transcriptome/xiayi/${i}_.gtf
+done
+
+② 
+gffcompare -o all -M -D -i gtf.list
+③ 
+awk -F'\t' '$7 != "." {print}' all.combined.gtf > all.gtf
+④ 
+source activate SQANTI3.env 
+export PYTHONPATH=/public/home/liupingping/22lzj/usefultool/SQANTI3/cDNA_Cupcake/sequence
+export PATH=/public/home/liupingping/22lzj/usefultool/SQANTI3/cDNA_Cupcake/:$PATH 
+python /public/home/liupingping/22lzj/usefultool/SQANTI3/sqanti3_qc.py --isoforms /public/home/liupingping/24wh/transcriptome/xiayi/kebianjianjie/2026.5.11/all.gtf --refGTF /public/home/liupingping/24wh/transcriptome/xiayi/ref/Mizuhopecten_yessoensis.gtf --refFasta /public/home/liupingping/24wh/transcriptome/xiayi/Mizuhopecten_yessoensis.genomic.fa -o all -d all_output --cpus 25 --report both 
+⑤
+for i in SRR4415811 SRR4428736 SRR4415812 SRR10055407 SRR10055408 SRR4415827 SRR4415813 SRR4431156 SRR4415814 SRR4415815 SRR4428738 SRR4415816 SRR4415819 SRR4431129 SRR4415820 SRR10055403 SRR10055404 SRR10055406 SRR4415817 SRR4415826 SRR10055409 SRR4415821 SRR4428737 SRR4415822 SRR4415823 SRR4431155 SRR4415824 SRR4415825 SRR4431130 SRR4473632
+do
+/public/home/liupingping/xzy/biosoftware/stringtie-1.3.3b.Linux_x86_64/stringtie /public/home/liupingping/24wh/transcriptome/xiayi/kebianjianjie/bidui/${i}.sort.bam -e -G /public/home/liupingping/24wh/transcriptome/xiayi/kebianjianjie/2026.5.11/all_output/all_corrected.cds.gff3 -p 40 -o ${i}--.gtf
+Done
+⑥
+/public/home/liupingping/22lzj/2transcriptome/ncbi_data/hap1/prepDE.py
+/public/home/liupingping/22lzj/2transcriptome/ncbi_data/hap1/getFPKM.py
+/public/home/liupingping/22lzj/2transcriptome/ncbi_data/hap1/getTPM.py
+python2 prepDE.py -i gtf.list
+python2 getFPKM.py -i gtf.list
+python2 getTPM.py -i gtf.list
+
+3. rMATS
+source activate rMATS_turbo
+export PATH="/public/home/liupingping/anaconda3/envs/rMATS_turbo/bin:$PATH"
+export PATH="/public/home/liupingping/anaconda3/envs/rMATS_turbo/lib:$PATH"
+rmats.py --b1 b1.txt --gtf /public/home/liupingping/24wh/transcriptome/xiayi/kebianjianjie/2026.5.11/all_output/all_corrected.cds.gff3 --readLength 100  --od AS_out --statoff -t paired --nthread 20 --tmp AS_tmp
+
+
+conda activate rmats2sashimiplot
+rmats2sashimiplot --b1 /public/home/liupingping/24wh/transcriptome/xiayi/kebianjianjie/bidui/SRR10055407.sort.bam,/public/home/liupingping/24wh/transcriptome/xiayi/kebianjianjie/bidui/SRR10055408.sort.bam,/public/home/liupingping/24wh/transcriptome/xiayi/kebianjianjie/bidui/SRR4415826.sort.bam --b2 /public/home/liupingping/24wh/transcriptome/xiayi/kebianjianjie/bidui/SRR4415817.sort.bam,/public/home/liupingping/24wh/transcriptome/xiayi/kebianjianjie/bidui/SRR4415827.sort.bam,/public/home/liupingping/24wh/transcriptome/xiayi/kebianjianjie/bidui/SRR10055409.sort.bam -t A3SS -e pyg19567-event.txt --l1 Ovary --l2 Testis --exon_s 1 --intron_s 5 -o /public/home/liupingping/24wh/transcriptome/xiayi/kebianjianjie/2026.5.11/AS_out/pyg12296 --group-info grouping.gf 
